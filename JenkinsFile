@@ -1,10 +1,18 @@
 pipeline {
     agent any
     environment {
+        // --- GOOGLE CLOUD SETTINGS ---
         PROJECT_ID = "spring-bookstore-dev"
         REGION = "us-central1"
         REPO_NAME = "my-docker-repo"
         DOCKER_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
+        
+        // --- KUBERNETES SETTINGS ---
+        // (Update these with your actual GKE cluster name and zone!)
+        CLUSTER_NAME = "my-cluster" 
+        CLUSTER_ZONE = "us-central1-a"
+        
+        // --- MICROSERVICES ---
         SERVICES = "config-server discovery-server api-gateway book-service author-service order-service stock-check-service message-service"
     }
 
@@ -40,7 +48,6 @@ pipeline {
                     for (service in serviceList) {
                         echo "Building ${service}..."
                         dir("${service}") {
-                            // MAGIC FIX: Generate the Dockerfile automatically!
                             writeFile file: 'Dockerfile', text: '''
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
@@ -61,7 +68,6 @@ ENTRYPOINT ["java","-jar","/app/app.jar"]
             steps {
                 dir('frontend') {
                     script {
-                        // MAGIC FIX: Generate the Next.js Dockerfile automatically!
                         writeFile file: 'Dockerfile', text: '''
 FROM node:18-alpine
 WORKDIR /app
@@ -76,6 +82,26 @@ CMD ["npm", "start"]
                         sh "docker build -t ${imageTag} ."
                         sh "docker push ${imageTag}"
                     }
+                }
+            }
+        }
+
+        // =========================================================
+        // NEW STAGE: CONTINUOUS DEPLOYMENT (CD) TO KUBERNETES
+        // =========================================================
+        stage('Deploy to Kubernetes (GKE)') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-key', variable: 'GCP_SECRET_FILE')]) {
+                    sh '''
+                    # 1. Connect Jenkins to your specific GKE Cluster
+                    gcloud container clusters get-credentials "$CLUSTER_NAME" --zone "$CLUSTER_ZONE" --project "$PROJECT_ID"
+                    
+                    # 2. Apply all Kubernetes YAML configurations from your 'kubernetes' folder
+                    kubectl apply -f kubernetes/
+                    
+                    # 3. Tell Kubernetes to forcefully restart to pull your brand new images!
+                    kubectl rollout restart deployment
+                    '''
                 }
             }
         }
