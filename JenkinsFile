@@ -5,8 +5,6 @@ pipeline {
         REGION = "us-central1"
         REPO_NAME = "my-docker-repo"
         DOCKER_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
-        
-        // List of all your backend services
         SERVICES = "config-server discovery-server api-gateway book-service author-service order-service stock-check-service message-service"
     }
 
@@ -19,17 +17,14 @@ pipeline {
 
         stage('Compile Java Code (Maven)') {
             steps {
-                // This step is mandatory! It creates the .jar files the Dockerfiles need.
                 sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Authenticate to Google Cloud') {
             steps {
-                // Safely uses the secret file we uploaded to Jenkins earlier
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GCP_SECRET_FILE')]) {
                     sh '''
-                    # Added quotes around the variables to protect against spaces in folder names!
                     gcloud auth activate-service-account --key-file="$GCP_SECRET_FILE"
                     gcloud config set project "$PROJECT_ID"
                     gcloud auth configure-docker "$REGION"-docker.pkg.dev --quiet
@@ -45,6 +40,14 @@ pipeline {
                     for (service in serviceList) {
                         echo "Building ${service}..."
                         dir("${service}") {
+                            // MAGIC FIX: Generate the Dockerfile automatically!
+                            writeFile file: 'Dockerfile', text: '''
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
+ENTRYPOINT ["java","-jar","/app/app.jar"]
+'''
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
                             sh "docker build -t ${imageTag} ."
                             sh "docker push ${imageTag}"
@@ -58,6 +61,17 @@ pipeline {
             steps {
                 dir('frontend') {
                     script {
+                        // MAGIC FIX: Generate the Next.js Dockerfile automatically!
+                        writeFile file: 'Dockerfile', text: '''
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+'''
                         def imageTag = "${DOCKER_REGISTRY}/frontend:${env.BUILD_NUMBER}"
                         sh "docker build -t ${imageTag} ."
                         sh "docker push ${imageTag}"
