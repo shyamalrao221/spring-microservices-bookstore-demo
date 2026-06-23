@@ -27,9 +27,10 @@ pipeline {
                 // Safely uses the secret file we uploaded to Jenkins earlier
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GCP_SECRET_FILE')]) {
                     sh '''
-                    gcloud auth activate-service-account --key-file=${GCP_SECRET_FILE}
-                    gcloud config set project ${PROJECT_ID}
-                    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                    # Added quotes around the variables to protect against spaces in folder names!
+                    gcloud auth activate-service-account --key-file="$GCP_SECRET_FILE"
+                    gcloud config set project "$PROJECT_ID"
+                    gcloud auth configure-docker "$REGION"-docker.pkg.dev --quiet
                     '''
                 }
             }
