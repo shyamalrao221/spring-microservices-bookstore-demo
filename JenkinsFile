@@ -8,8 +8,7 @@ pipeline {
         DOCKER_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
         
         // --- KUBERNETES SETTINGS ---
-        // (Update these with your actual GKE cluster name and zone!)
-        CLUSTER_NAME = "my-cluster" 
+        CLUSTER_NAME = "shyam-private-gke" 
         CLUSTER_ZONE = "us-central1-a"
         
         // --- MICROSERVICES ---
@@ -25,7 +24,8 @@ pipeline {
 
         stage('Compile Java Code (Maven)') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                // FIXED: Placed the jib.skip flag here so Docker Hub doesn't block us!
+                sh 'mvn clean package -DskipTests -Djib.skip=true'
             }
         }
 
@@ -103,12 +103,6 @@ CMD ["npm", "start"]
                     kubectl rollout restart deployment
                     '''
                 }
-            }
-        }
-stage('Compile Java Code (Maven)') {
-            steps {
-                // Added -Djib.skip=true to stop Maven from redundantly downloading Docker images!
-                sh 'mvn clean package -DskipTests -Djib.skip=true'
             }
         }
     }
