@@ -4,41 +4,45 @@ pipeline {
         PROJECT_ID = "spring-bookstore-dev"
         REGION = "us-central1"
         REPO_NAME = "my-docker-repo"
-        // This is the URL to your Google Artifact Registry
         DOCKER_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
-        
-        // List of all your backend services
         SERVICES = "config-server discovery-server api-gateway book-service author-service order-service stock-check-service message-service"
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                // Pulls the latest code from your GitHub repository
                 checkout scm
+            }
+        }
+
+        stage('Compile Java Code (Maven)') {
+            steps {
+                // This step is mandatory! It creates the .jar files the Dockerfiles need.
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Authenticate to Google Cloud') {
             steps {
-                sh '''
-                # Configure Docker to be able to push to Google Artifact Registry
-                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-                '''
+                // Safely uses the secret file we uploaded to Jenkins earlier
+                withCredentials([file(credentialsId: 'gcp-key', variable: 'GCP_SECRET_FILE')]) {
+                    sh '''
+                    gcloud auth activate-service-account --key-file=${GCP_SECRET_FILE}
+                    gcloud config set project ${PROJECT_ID}
+                    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                    '''
+                }
             }
         }
 
         stage('Build and Push Java Microservices') {
             steps {
                 script {
-                    // Loop through every folder and build its Docker image
                     def serviceList = SERVICES.split(' ')
                     for (service in serviceList) {
                         echo "Building ${service}..."
                         dir("${service}") {
-                            // Assuming you have a Dockerfile in each service folder
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            
                             sh "docker build -t ${imageTag} ."
                             sh "docker push ${imageTag}"
                         }
