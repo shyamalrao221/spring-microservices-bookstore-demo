@@ -5,6 +5,8 @@ pipeline {
         REGION = "us-central1"
         REPO_NAME = "my-docker-repo"
         DOCKER_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
+        
+        // List of all your backend services
         SERVICES = "config-server discovery-server api-gateway book-service author-service order-service stock-check-service message-service"
     }
 
