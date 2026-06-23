@@ -105,5 +105,11 @@ CMD ["npm", "start"]
                 }
             }
         }
+stage('Compile Java Code (Maven)') {
+            steps {
+                // Added -Djib.skip=true to stop Maven from redundantly downloading Docker images!
+                sh 'mvn clean package -DskipTests -Djib.skip=true'
+            }
+        }
     }
 }
