@@ -96,8 +96,8 @@ CMD ["npm", "start"]
                     # 1. Connect Jenkins to your specific GKE Cluster
                     gcloud container clusters get-credentials "shyam-private-gke" --zone "us-central1-a" --project "$PROJECT_ID"
                     
-                    # 2. Apply all Kubernetes YAML configurations from your 'kubernetes' folder
-                    kubectl apply -f kubernetes/
+                    # 2. Apply all Kubernetes YAML configurations (recursively searching the subfolders!)
+                    kubectl apply -R -f kubernetes/
                     
                     # 3. Tell Kubernetes to forcefully restart to pull your brand new images!
                     kubectl rollout restart deployment
