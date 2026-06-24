@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: microservices-bookstore/api-gateway:latest
+          image: us-central1-docker.pkg.dev/spring-bookstore-dev/my-docker-repo/api-gateway:latest
           imagePullPolicy: IfNotPresent  # Pull local if not found elsewhere
           ports:
             - containerPort: 8080

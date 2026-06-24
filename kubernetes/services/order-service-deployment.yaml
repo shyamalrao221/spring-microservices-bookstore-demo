@@ -20,7 +20,7 @@ spec:
         - env:
             - name: SPRING_PROFILES_ACTIVE
               value: docker
-          image: microservices-bookstore/order-service:latest
+          image: us-central1-docker.pkg.dev/spring-bookstore-dev/my-docker-repo/order-service:latest
           imagePullPolicy: IfNotPresent # Pull local if not found elsewhere
           name: order-service
           resources: {}

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: microservices-bookstore/config-server:latest
+          image: us-central1-docker.pkg.dev/spring-bookstore-dev/my-docker-repo/config-server:latest
           imagePullPolicy: IfNotPresent # Pull local if not found elsewhere
           ports:
             - containerPort: 8888

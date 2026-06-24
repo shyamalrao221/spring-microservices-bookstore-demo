@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nextjs-frontend
-          image: microservices-bookstore/nextjs-frontend:latest
+          image: us-central1-docker.pkg.dev/spring-bookstore-dev/my-docker-repo/frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

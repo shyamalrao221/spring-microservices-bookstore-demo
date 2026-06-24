@@ -18,7 +18,7 @@ spec:
         - env:
             - name: SPRING_PROFILES_ACTIVE
               value: docker
-          image: microservices-bookstore/discovery-server:latest
+          image: us-central1-docker.pkg.dev/spring-bookstore-dev/my-docker-repo/discovery-server:latest
           name: discovery-server
           imagePullPolicy: IfNotPresent # Pull local if not found elsewhere
           ports:
