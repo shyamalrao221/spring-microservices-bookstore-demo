@@ -24,7 +24,7 @@ pipeline {
 
         stage('Compile Java Code (Maven)') {
             steps {
-                // FIXED: Placed the jib.skip flag here so Docker Hub doesn't block us!
+                // Skips tests and skips the Jib plugin to prevent Docker Hub rate limits
                 sh 'mvn clean package -DskipTests -Djib.skip=true'
             }
         }
@@ -48,6 +48,7 @@ pipeline {
                     for (service in serviceList) {
                         echo "Building ${service}..."
                         dir("${service}") {
+                            // Automatically generates the Java Dockerfile
                             writeFile file: 'Dockerfile', text: '''
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
@@ -55,9 +56,17 @@ ARG JAR_FILE=target/*.jar
 COPY ${JAR_FILE} app.jar
 ENTRYPOINT ["java","-jar","/app/app.jar"]
 '''
+                            // Create both the specific build tag AND the 'latest' tag
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+                            def latestTag = "${DOCKER_REGISTRY}/${service}:latest"
+                            
+                            // Build and push the specific version
                             sh "docker build -t ${imageTag} ."
                             sh "docker push ${imageTag}"
+                            
+                            // Tag and push as 'latest' so Kubernetes can easily find it
+                            sh "docker tag ${imageTag} ${latestTag}"
+                            sh "docker push ${latestTag}"
                         }
                     }
                 }
@@ -68,6 +77,7 @@ ENTRYPOINT ["java","-jar","/app/app.jar"]
             steps {
                 dir('frontend') {
                     script {
+                        // Automatically generates the Next.js Dockerfile
                         writeFile file: 'Dockerfile', text: '''
 FROM node:18-alpine
 WORKDIR /app
@@ -78,17 +88,22 @@ RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]
 '''
+                        // Create both the specific build tag AND the 'latest' tag
                         def imageTag = "${DOCKER_REGISTRY}/frontend:${env.BUILD_NUMBER}"
+                        def latestTag = "${DOCKER_REGISTRY}/frontend:latest"
+                        
+                        // Build and push the specific version
                         sh "docker build -t ${imageTag} ."
                         sh "docker push ${imageTag}"
+                        
+                        // Tag and push as 'latest'
+                        sh "docker tag ${imageTag} ${latestTag}"
+                        sh "docker push ${latestTag}"
                     }
                 }
             }
         }
 
-        // =========================================================
-        // NEW STAGE: CONTINUOUS DEPLOYMENT (CD) TO KUBERNETES
-        // =========================================================
         stage('Deploy to Kubernetes (GKE)') {
             steps {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GCP_SECRET_FILE')]) {
@@ -96,7 +111,7 @@ CMD ["npm", "start"]
                     # 1. Connect Jenkins to your specific GKE Cluster
                     gcloud container clusters get-credentials "shyam-private-gke" --zone "us-central1-a" --project "$PROJECT_ID"
                     
-                    # 2. Apply all Kubernetes YAML configurations (recursively searching the subfolders!)
+                    # 2. Apply all Kubernetes YAML configurations (recursively searching subfolders)
                     kubectl apply -R -f kubernetes/
                     
                     # 3. Tell Kubernetes to forcefully restart to pull your brand new images!
